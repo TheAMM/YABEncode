@@ -1,6 +1,10 @@
 from io import BytesIO
 
+version_info = (0, 2, 0)
+version = '.'.join(str(c) for c in version_info)
+
 __all__ = ['encode', 'decode', 'BencodeException', 'MalformedBencodeException']
+
 
 def _pairwise(iterable):
     """ Returns items from an iterable two at a time, ala
@@ -15,6 +19,26 @@ class BencodeException(Exception):
 
 class MalformedBencodeException(BencodeException):
     pass
+
+
+class ReadPositionFileWrapper(object):
+    def __init__(self, file_object):
+        self.file_object = file_object
+        self.position = 0
+
+        try:
+            # For example, stdin can't be .tell()'d
+            self.position += file_object.tell()
+        except OSError:
+            pass
+
+    def read(self, size=-1):
+        data = self.file_object.read(size)
+        self.position += len(data)
+        return data
+
+    def __getattr__(self, attr):
+        return getattr(self.file_object, attr)
 
 
 # bencode types
@@ -35,8 +59,11 @@ def _bencode_decode(file_object, key_encoding='utf-8'):
     if isinstance(file_object, bytes):
         file_object = BytesIO(file_object)
 
+    file_object = ReadPositionFileWrapper(file_object)
+
     def create_ex(msg):
-        return MalformedBencodeException('{0} at position {1} (0x{1:02X} hex)'.format(msg, file_object.tell()))
+        msg += ' at position {0} (0x{0:02X})'.format(file_object.position)
+        return MalformedBencodeException(msg)
 
     def _read_list():
         """ Decodes values from stream until a None is returned ('e') """
@@ -85,7 +112,7 @@ def _bencode_decode(file_object, key_encoding='utf-8'):
         return decoded_dict
 
     # List/dict end, but make sure input is not just 'e'
-    elif kind == _B_END and file_object.tell() > 0:
+    elif kind == _B_END and file_object.position > 0:
         return None
 
     elif kind in _DIGITS:  # Bytestring
