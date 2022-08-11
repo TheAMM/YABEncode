@@ -1,6 +1,6 @@
 from io import BytesIO
 
-version_info = (0, 2, 0)
+version_info = (0, 2, 1)
 version = '.'.join(str(c) for c in version_info)
 
 __all__ = ['encode', 'decode', 'BencodeException', 'MalformedBencodeException']
