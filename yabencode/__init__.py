@@ -43,10 +43,10 @@ class ReadPositionFileWrapper(object):
 
 # bencode types
 _DIGITS = b'0123456789'
-_B_INT = b'i'
+_B_INT  = b'i'
 _B_LIST = b'l'
 _B_DICT = b'd'
-_B_END = b'e'
+_B_END  = b'e'
 
 
 # Decoding of bencoded data
@@ -74,6 +74,15 @@ def _bencode_decode(file_object, key_encoding='utf-8'):
                 break
             items.append(value)
         return items
+
+    if key_encoding:
+        def _decode_key(key_bytes):
+            try:
+                return key_bytes.decode(key_encoding)
+            except Exception as e:
+                raise BencodeException('Unable to decode key: ' + repr(key_bytes)) from e
+    else:
+        _decode_key = lambda k : k
 
     kind = file_object.read(1)
     if not kind:
@@ -107,7 +116,7 @@ def _bencode_decode(file_object, key_encoding='utf-8'):
 
         # "Technically" the bencode dictionary keys are bytestrings,
         # but real-world they're always(?) UTF-8.
-        decoded_dict = dict((key_encoding and k.decode(key_encoding) or k, v)
+        decoded_dict = dict((_decode_key(k), v)
                             for k, v in _pairwise(keys_and_values))
         return decoded_dict
 
